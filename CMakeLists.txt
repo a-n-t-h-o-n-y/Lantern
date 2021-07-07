@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 Project(MAZE LANGUAGES CXX)
 
+add_subdirectory(external/TermOx)
+add_subdirectory(external/MAZE)
+
 add_executable(lantern
     src/lantern.main.cpp
 )
