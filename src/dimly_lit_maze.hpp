@@ -8,6 +8,8 @@
 #include <maze/maze.hpp>
 #include <termox/termox.hpp>
 
+#include "palette.hpp"
+
 namespace lantern {
 
 template <maze::Distance Width, maze::Distance Height, ox::Color lantern_color>
@@ -29,8 +31,6 @@ class Dimly_lit_maze : public ox::Widget {
     sl::Signal<void()> time_warp;
 
    public:
-    // TODO should take two different colors, one for the light and one for
-    // the start and end squares.
     Dimly_lit_maze()
     {
         using namespace ox::pipe;
@@ -76,6 +76,10 @@ class Dimly_lit_maze : public ox::Widget {
             }
         };
 
+        if (k == ox::Key::r) {
+            this->reset();
+            time_warp.emit();
+        }
         auto const direction = to_direction(k);
         if (direction.has_value()) {
             auto const next = maze::utility::next_point<Width, Height>(
@@ -99,16 +103,17 @@ class Dimly_lit_maze : public ox::Widget {
     auto paint_event(ox::Painter& p) -> bool override
     {
         constexpr auto wanderer_glyph =
-            U'🯅' | bg(lantern_color) | fg(ox::Color::Black);
+            U'🯅' | bg(color::Lantern) | fg(color::Black);
 
-        constexpr auto start_glyph = U's' | bg(lantern_color) |
-                                     fg(ox::Color::Black);  // TODO start_color
+        constexpr auto start_glyph =
+            U's' | bg(color::Start) | fg(color::Almost_black);
 
-        constexpr auto end_glyph = U' ' | bg(ox::Color::Red);  // TODO end_color
+        constexpr auto end_glyph =
+            U'e' | bg(color::End) | fg(color::Almost_black);
 
         constexpr auto blocks =
-            std::array{U'▓' | fg(lantern_color), U'▒' | fg(lantern_color),
-                       U'░' | fg(lantern_color)};
+            std::array{U'▓' | fg(color::Lantern), U'▒' | fg(color::Lantern),
+                       U'░' | fg(color::Lantern)};
 
         if (too_small_) {
             p.put(U"Screen" | fg(ox::Color::Red), {0, 0});
@@ -186,7 +191,7 @@ class Dimly_lit_maze : public ox::Widget {
         /// Find the wall glyph associated with the given Point.
         auto const find_wall = [&](ox::Point p) {
             return wall_glyphs[(p.x + p.y) % wall_glyphs.size()] |
-                   fg(ox::Color::Brown) | bg(ox::Color::Dark_red);
+                   fg(color::Wall_1) | bg(color::Wall_2);
         };
 
         if (north.has_value())

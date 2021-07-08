@@ -8,6 +8,7 @@
 #include <termox/termox.hpp>
 
 #include "dimly_lit_maze.hpp"
+#include "palette.hpp"
 
 namespace lantern {
 
@@ -123,7 +124,7 @@ class Floating_maze_stack : public ox::Float_2d<Maze_stack> {
     Floating_maze_stack()
     {
         using namespace ox::pipe;
-        constexpr auto background = ox::Color::Dark_gray;
+        constexpr auto background = color::Almost_black;
         this->buffer_1 | bg(background);
         this->buffer_2 | bg(background);
         this->widget.buffer_1 | bg(background);

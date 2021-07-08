@@ -7,6 +7,7 @@
 
 #include "maze_stack.hpp"
 #include "notify_label.hpp"
+#include "palette.hpp"
 
 namespace lantern {
 
@@ -16,6 +17,7 @@ class Top_bar : public ox::HLabel {
     {
         using namespace ox::pipe;
         this->set_level_text(1);
+        *this | bg(color::Almost_black) | fg(color::Almost_white);
     }
 
    public:
@@ -44,9 +46,11 @@ class Attempts_display
     Attempts_display()
     {
         using namespace ox::pipe;
-        title | text(U"Attempts") | fixed_width(10);
-        count_view | fixed_width(4) | bg(ox::Color::Light_gray) |
-            fg(ox::Color::Black);
+        title | text(U"Attempts:") | fixed_width(10);
+        title | bg(color::Attempts_bg) | fg(color::Almost_white);
+        count_view | bg(color::Attempts_bg) | fg(color::Almost_white) |
+            fixed_width(3);
+        *this | fixed_width(13);
         this->reset();
     }
 
@@ -60,9 +64,9 @@ struct About_btn : ox::Toggle_button {
     About_btn() : ox::Toggle_button{U"About", U"Back"}
     {
         using namespace ox::pipe;
-        *this | fixed_width(11);
-        top | bg(ox::Color::Dark_blue);
-        bottom | bg(ox::Color::Orange);
+        *this | fixed_width(9);
+        top | bg(color::About_btn_bg) | fg(color::Almost_black);
+        bottom | bg(color::Back_btn_bg) | fg(color::Almost_black);
     }
 };
 
@@ -73,6 +77,7 @@ class Bottom_bar : public ox::HTuple<Attempts_display,
                                      Notify_label> {
    public:
     Attempts_display& attempts    = this->get<0>();
+    Widget& empty_space           = this->get<1>();
     About_btn& about_btn          = this->get<2>();
     ox::Confirm_button& reset_btn = this->get<3>();
     Notify_label& reset_notify    = this->get<4>();
@@ -83,25 +88,56 @@ class Bottom_bar : public ox::HTuple<Attempts_display,
         using namespace ox::pipe;
         *this | fixed_height(1);
 
-        reset_btn.main_btn | text(U"Reset Maze");
+        empty_space | bg(color::Almost_black);
+
+        reset_btn.main_btn | text(U"Reset Maze") |
+            bg(color::Reset_maze_btn_bg) | fg(color::Almost_black);
+        reset_btn.confirm_page.confirm_btn |
+            bg(color::Reset_maze_btn_confirm_bg) | fg(color::Almost_black);
+        reset_btn.confirm_page.exit_btn | bg(color::Almost_black) |
+            fg(color::Almost_white);
         reset_btn | fixed_width(12);
-        reset_notify | fixed_width(9) | bg(ox::Color::Gray);
+        reset_notify | fixed_width(9) | bg(color::Attempts_bg) |
+            fg(color::Almost_black);
     }
 };
 
-class About_page : public ox::Text_view {
+class About_page : public ox::HTuple<ox::Widget, ox::Text_view, ox::Widget> {
    public:
-    About_page() : ox::Text_view{generate_text()} {}
-    //    also instruction button that flips out the maze stack for about
+    About_page()
+    {
+        using namespace ox::pipe;
+        this->get<0>() | bg(color::Almost_black);
+        this->get<2>() | bg(color::Almost_black);
+        text_view | fixed_width(50) | bg(color::Almost_black) |
+            fg(color::Almost_white) | text(generate_text());
+    }
+
     //    screen that works on small displays. instructions show way to exit
     //    ctrl-c also how to reset entire game by exiting and restarting.
     //    Explain the idea of getting to the end of the maze in exact number of
     //    steps.
 
    private:
+    ox::Text_view& text_view = this->get<1>();
+
+   private:
     [[nodiscard]] static auto generate_text() -> ox::Glyph_string
     {
-        auto result = ox::Glyph_string{U"About Page"};
+        auto result = ox::Glyph_string{U'\n'};
+        result.append(U"                      About" | ox::Trait::Bold);
+        result.append(U"\n\n");
+        result.append(
+            U"Travel from the beginning to the end of the maze in the least "
+            U"amount of steps possible.\n\nThe wanderer is reset to the start "
+            U"if this step count is reached without completing the "
+            U"maze.\n\nComplete each level in the least number of "
+            U"attempts.\n\n");
+
+        result.append(U"Controls" | ox::Trait::Bold);
+        result.append(U"\n• Movement             Arrow Keys / wasd / hjkl");
+        result.append(U"\n• Reset Current Level  r");
+        result.append(U"\n• Exit App             Ctrl c");
         return result;
     }
 };
@@ -111,7 +147,10 @@ class End_screen : public ox::HTuple<ox::Widget, ox::Text_view, ox::Widget> {
     End_screen()
     {
         using namespace ox::pipe;
-        text_view | fixed_width(14) | any_wrap();
+        text_view | fixed_width(14) | any_wrap() | bg(color::Almost_black) |
+            fg(color::Almost_white);
+        this->get<0>() | bg(color::Almost_black);
+        this->get<2>() | bg(color::Almost_black);
     }
 
    public:
@@ -155,14 +194,17 @@ class Full_UI
     Full_UI()
     {
         using namespace ox::pipe;
+
+        ox::Terminal::set_palette(palette);
+
         *this | direct_focus() | forward_focus(maze_stack);
 
         // middle stack - set floating maze stack
         this->get<1>().set_active_page(0);
 
         maze_stack.maze_reset.connect([this] {
-            bottom_bar.reset_notify.set_text(U"  Reset  " | bg(ox::Color::Red) |
-                                             fg(ox::Color::Black));
+            bottom_bar.reset_notify.set_text(
+                U"  Reset  " | bg(color::Reset_notify_bg) | fg(color::Black));
         });
 
         maze_stack.page_changed.connect(
