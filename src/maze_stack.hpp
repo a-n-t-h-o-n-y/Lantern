@@ -12,15 +12,15 @@
 
 namespace lantern {
 
-using Mazes_tuple = ox::STuple<Dimly_lit_maze<10, 5, ox::Color::Yellow>,
-                               Dimly_lit_maze<15, 8, ox::Color::Yellow>,
-                               Dimly_lit_maze<20, 10, ox::Color::Yellow>,
-                               Dimly_lit_maze<25, 13, ox::Color::Yellow>,
-                               Dimly_lit_maze<30, 15, ox::Color::Yellow>,
-                               Dimly_lit_maze<35, 18, ox::Color::Yellow>,
-                               Dimly_lit_maze<40, 20, ox::Color::Yellow>,
-                               Dimly_lit_maze<45, 23, ox::Color::Yellow>,
-                               Dimly_lit_maze<50, 25, ox::Color::Yellow>>;
+using Mazes_tuple = ox::STuple<Dimly_lit_maze<10, 5>,
+                               Dimly_lit_maze<14, 7>,
+                               Dimly_lit_maze<28, 9>,
+                               Dimly_lit_maze<34, 12>,
+                               Dimly_lit_maze<38, 14>,
+                               Dimly_lit_maze<45, 16>,
+                               Dimly_lit_maze<52, 18>,
+                               Dimly_lit_maze<60, 20>,
+                               Dimly_lit_maze<80, 20>>;
 
 /// Holds all levels of generated mazes.
 class Maze_stack : public Mazes_tuple {
@@ -68,6 +68,14 @@ class Maze_stack : public Mazes_tuple {
         }
     }
 
+   protected:
+    auto timer_event() -> bool override
+    {
+        this->disable_animation();
+        this->increment_maze();
+        return Mazes_tuple::timer_event();
+    }
+
    private:
     /// [maze_index, attempt_count]
     std::map<int, int> attempts_ = {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1},
@@ -80,7 +88,7 @@ class Maze_stack : public Mazes_tuple {
         this->set_active_page(index);
         attempts_modified.emit(attempts_[index]);
 
-        // TODO change palette colors?
+        ox::Terminal::set_palette(palettes[index]);
 
         auto* maze = this->get_active_page();
         assert(maze != nullptr);
@@ -111,11 +119,31 @@ class Maze_stack : public Mazes_tuple {
     {
         auto const emit_reset = [this] { this->maze_reset.emit(); };
         (this->get<Is>().time_warp.connect(emit_reset), ...);
-        auto const goto_next_maze = [this] { this->increment_maze(); };
-        (this->get<Is>().maze_complete.connect(goto_next_maze), ...);
+        auto const goto_next_maze = [this](auto index) {
+            this->reveal_maze_and_set_timer(index);
+        };
+        (this->get<Is>().maze_complete.connect([=] { goto_next_maze(Is); }),
+         ...);
         auto start = maze::utility::random_point<10, 5>();
         ((this->get<Is>().generate(start), start = this->get<Is>().maze_end()),
          ...);
+    }
+
+    void reveal_maze_and_set_timer(std::size_t index)
+    {
+        switch (index) {
+            case 0: this->get<0>().reveal_maze(true); break;
+            case 1: this->get<1>().reveal_maze(true); break;
+            case 2: this->get<2>().reveal_maze(true); break;
+            case 3: this->get<3>().reveal_maze(true); break;
+            case 4: this->get<4>().reveal_maze(true); break;
+            case 5: this->get<5>().reveal_maze(true); break;
+            case 6: this->get<6>().reveal_maze(true); break;
+            case 7: this->get<7>().reveal_maze(true); break;
+            case 8: this->get<8>().reveal_maze(true); break;
+            default: throw std::logic_error{"Invalid Index"};
+        }
+        this->enable_animation(std::chrono::milliseconds{4'000});
     }
 };
 

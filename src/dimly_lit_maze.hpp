@@ -1,10 +1,13 @@
 #ifndef LANTERN_DIMLY_LIT_MAZE_HPP
 #define LANTERN_DIMLY_LIT_MAZE_HPP
+#include <algorithm>
 #include <array>
 #include <optional>
+#include <random>
 
 #include <maze/distance.hpp>
 #include <maze/generate_recursive_backtracking.hpp>
+#include <maze/longest_path.hpp>
 #include <maze/maze.hpp>
 #include <termox/termox.hpp>
 
@@ -12,7 +15,7 @@
 
 namespace lantern {
 
-template <maze::Distance Width, maze::Distance Height, ox::Color lantern_color>
+template <maze::Distance Width, maze::Distance Height>
 class Dimly_lit_maze : public ox::Widget {
    public:
     static constexpr auto width  = Width;
@@ -21,11 +24,6 @@ class Dimly_lit_maze : public ox::Widget {
    public:
     /// Emitted when wanderer makes it to the end of the maze.
     sl::Signal<void()> maze_complete;
-    // TODO reveal the whole map then wait a second or two and change mazes.
-    // do this from the outside by calling a public function that is defined
-    // here to show entire maze, the animation happens at the higher level, it
-    // sets a timer event, which will wait a second and then the timer event
-    // will stop the animation and switch to the next maze.
 
     /// Emitted when the wanderer goes over the max step count and is reset.
     sl::Signal<void()> time_warp;
@@ -60,6 +58,13 @@ class Dimly_lit_maze : public ox::Widget {
     /// Return the end of the currently set maze.
     [[nodiscard]] auto maze_end() const -> maze::Point { return maze_.end(); }
 
+    /// Displays the entire maze when set true, otherwise only shows neighbors.
+    void reveal_maze(bool reveal = true)
+    {
+        reveal_maze_ = reveal;
+        this->update();
+    }
+
    protected:
     /// Move wanderer, possibly reset or emit signal.
     auto key_press_event(ox::Key k) -> bool override
@@ -68,9 +73,17 @@ class Dimly_lit_maze : public ox::Widget {
             [](ox::Key k) -> std::optional<maze::Direction> {
             switch (k) {
                 using ox::Key;
+                case Key::w:
+                case Key::k:
                 case Key::Arrow_up: return maze::Direction::North;
+                case Key::s:
+                case Key::j:
                 case Key::Arrow_down: return maze::Direction::South;
+                case Key::d:
+                case Key::l:
                 case Key::Arrow_right: return maze::Direction::East;
+                case Key::a:
+                case Key::h:
                 case Key::Arrow_left: return maze::Direction::West;
                 default: return std::nullopt;
             }
@@ -99,7 +112,6 @@ class Dimly_lit_maze : public ox::Widget {
         return Widget::key_press_event(k);
     }
 
-    //     maze coords match to this widget coords
     auto paint_event(ox::Painter& p) -> bool override
     {
         constexpr auto wanderer_glyph =
@@ -122,10 +134,15 @@ class Dimly_lit_maze : public ox::Widget {
             return Widget::paint_event(p);
         }
 
+        if (reveal_maze_) {
+            paint_entire_maze(p, maze_, start_glyph, end_glyph);
+            return Widget::paint_event(p);
+        }
+
         auto const at = ox::Point{wanderer_point_.x, wanderer_point_.y};
         p.put(wanderer_glyph, at);
 
-        paint_adjacent_walls(p, wanderer_point_);
+        paint_adjacent_walls(p, wanderer_point_, maze_);
         for (auto const direction : maze::utility::directions) {
             auto next = std::optional{wanderer_point_};
             for (auto const block : blocks) {
@@ -137,7 +154,7 @@ class Dimly_lit_maze : public ox::Widget {
                         p.put(end_glyph, {next->x, next->y});
                     else
                         p.put(block, {next->x, next->y});
-                    paint_adjacent_walls(p, *next);
+                    paint_adjacent_walls(p, *next, maze_);
                 }
                 else
                     break;
@@ -156,12 +173,19 @@ class Dimly_lit_maze : public ox::Widget {
     int max_steps_              = 0;
     int step_count_             = 0;
     bool too_small_             = true;
+    bool reveal_maze_           = false;
 
    private:
-    /// Paints up to 8 adjacent wall spaces.
-    void paint_adjacent_walls(ox::Painter& p, maze::Point at)
+    /// Find the wall glyph associated with the given Point.
+    [[nodiscard]] static auto find_wall(ox::Point p) -> ox::Glyph
     {
-        constexpr auto wall_glyphs = std::array{
+        return wall_glyphs_[(p.x + (p.y * Width)) % wall_glyphs_.size()] |
+               fg(color::Wall_1) | bg(color::Wall_2);
+    }
+
+    [[nodiscard]] static auto get_shuffled_walls() -> std::array<char32_t, 60>
+    {
+        auto walls = std::array{
             U'🬀', U'🬁', U'🬂', U'🬃', U'🬄', U'🬅', U'🬆',
             U'🬇', U'🬈', U'🬉', U'🬊', U'🬋', U'🬌', U'🬍',
             U'🬎', U'🬏', U'🬐', U'🬑', U'🬒', U'🬓', U'🬔',
@@ -171,13 +195,22 @@ class Dimly_lit_maze : public ox::Widget {
             U'🬪', U'🬫', U'🬬', U'🬭', U'🬮', U'🬯', U'🬰',
             U'🬱', U'🬲', U'🬳', U'🬴', U'🬵', U'🬶', U'🬷',
             U'🬸', U'🬹', U'🬺', U'🬻'};
+        static auto gen = std::mt19937{std::random_device{}()};
+        std::shuffle(std::begin(walls), std::end(walls), gen);
+        return walls;
+    }
 
+    /// Paints up to 8 adjacent wall spaces.
+    static void paint_adjacent_walls(ox::Painter& p,
+                                     maze::Point at,
+                                     maze::Maze<Width, Height> const& m)
+    {
         /// Return the point if it is a Wall, nullopt otherwise.
         auto const get_wall_or_null =
-            [this](maze::Point at,
-                   maze::Direction direction) -> std::optional<ox::Point> {
+            [&](maze::Point at,
+                maze::Direction direction) -> std::optional<ox::Point> {
             auto pt = maze::utility::next_point<Width, Height>(at, direction);
-            if (pt.has_value() && maze_.get(*pt) == maze::Cell::Wall)
+            if (pt.has_value() && m.get(*pt) == maze::Cell::Wall)
                 return std::optional{ox::Point{pt->x, pt->y}};
             else
                 return std::nullopt;
@@ -187,12 +220,6 @@ class Dimly_lit_maze : public ox::Widget {
         auto const south = get_wall_or_null(at, maze::Direction::South);
         auto const east  = get_wall_or_null(at, maze::Direction::East);
         auto const west  = get_wall_or_null(at, maze::Direction::West);
-
-        /// Find the wall glyph associated with the given Point.
-        auto const find_wall = [&](ox::Point p) {
-            return wall_glyphs[(p.x + p.y) % wall_glyphs.size()] |
-                   fg(color::Wall_1) | bg(color::Wall_2);
-        };
 
         if (north.has_value())
             p.put(find_wall(*north), *north);
@@ -212,6 +239,31 @@ class Dimly_lit_maze : public ox::Widget {
         if (south.has_value() && east.has_value())
             p.put(find_wall({east->x, south->y}), {east->x, south->y});
     }
+
+    static void paint_entire_maze(ox::Painter& p,
+                                  maze::Maze<Width, Height> const& m,
+                                  ox::Glyph start,
+                                  ox::Glyph end)
+    {
+        for (auto x = 0; x < Width; ++x) {
+            for (auto y = 0; y < Height; ++y) {
+                if (m.get({(maze::Distance)x, (maze::Distance)y}) ==
+                    maze::Cell::Wall) {
+                    p.put(find_wall({x, y}), {x, y});
+                }
+            }
+        }
+
+        auto const solution = maze::longest_path(m, m.start());
+        for (auto point : solution)
+            p.put(U'•' | fg(color::Gray), {point.x, point.y});
+
+        p.put(start, {m.start().x, m.start().y});
+        p.put(end, {m.end().x, m.end().y});
+    }
+
+   private:
+    inline static std::array<char32_t, 60> wall_glyphs_ = get_shuffled_walls();
 };
 
 }  // namespace lantern

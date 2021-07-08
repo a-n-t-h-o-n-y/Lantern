@@ -26,7 +26,7 @@ class Top_bar : public ox::HLabel {
         assert(level < 10);
         auto message = ox::Glyph_string{U"Level "};
         message.append(std::to_string(level));
-        message.append(U" of 9");
+        message.append(U" of 9 ");
         this->ox::HLabel::set_text(std::move(message));
     }
 
@@ -125,14 +125,13 @@ class About_page : public ox::HTuple<ox::Widget, ox::Text_view, ox::Widget> {
     [[nodiscard]] static auto generate_text() -> ox::Glyph_string
     {
         auto result = ox::Glyph_string{U'\n'};
-        result.append(U"                      About" | ox::Trait::Bold);
+        result.append(U"                     About" | ox::Trait::Bold);
         result.append(U"\n\n");
         result.append(
-            U"Travel from the beginning to the end of the maze in the least "
-            U"amount of steps possible.\n\nThe wanderer is reset to the start "
-            U"if this step count is reached without completing the "
-            U"maze.\n\nComplete each level in the least number of "
-            U"attempts.\n\n");
+            U"Complete each maze in the least number of steps possible.\n\nThe "
+            U"wanderer is reset if this step count is reached without "
+            U"completing the maze.\n\nComplete each level in the least number "
+            U"of attempts.\n\n");
 
         result.append(U"Controls" | ox::Trait::Bold);
         result.append(U"\n• Movement             Arrow Keys / wasd / hjkl");
@@ -194,8 +193,6 @@ class Full_UI
     Full_UI()
     {
         using namespace ox::pipe;
-
-        ox::Terminal::set_palette(palette);
 
         *this | direct_focus() | forward_focus(maze_stack);
 
