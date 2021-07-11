@@ -2,4 +2,4 @@
 
 #include "full_ui.hpp"
 
-int main() { return ox::System{}.run<lantern::Full_UI>(); }
+int main() { return ox::System{}.run<lantern::Lantern_app>(); }

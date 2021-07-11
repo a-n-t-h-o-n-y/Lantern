@@ -5,6 +5,7 @@
 
 #include <termox/termox.hpp>
 
+#include "generator.hpp"
 #include "maze_stack.hpp"
 #include "notify_label.hpp"
 #include "palette.hpp"
@@ -113,11 +114,6 @@ class About_page : public ox::HTuple<ox::Widget, ox::Text_view, ox::Widget> {
             fg(color::Almost_white) | text(generate_text());
     }
 
-    //    screen that works on small displays. instructions show way to exit
-    //    ctrl-c also how to reset entire game by exiting and restarting.
-    //    Explain the idea of getting to the end of the maze in exact number of
-    //    steps.
-
    private:
     ox::Text_view& text_view = this->get<1>();
 
@@ -178,6 +174,52 @@ class End_screen : public ox::HTuple<ox::Widget, ox::Text_view, ox::Widget> {
     }
 };
 
+class Generator_title : public ox::HLabel {
+   public:
+    Generator_title()
+        : ox::HLabel{U"~ Choose Maze Generator ~", ox::Align::Center}
+    {
+        using namespace ox::pipe;
+        *this | fg(color::Almost_white) | bg(color::Almost_black);
+    }
+};
+
+class Generator_menu : public ox::Menu {
+   public:
+    sl::Signal<void(Generator)> chosen;
+
+   public:
+    Generator_menu()
+    {
+        using namespace ox::pipe;
+
+        this->append_item(U"Recursive Backtracking").connect([this] {
+            chosen.emit(Generator::Recursive_backtracking);
+        });
+        this->append_item(U"Randomized Kruskal").connect([this] {
+            chosen.emit(Generator::Kruskal);
+        });
+
+        *this | descendants() | fg(color::Almost_white) |
+            bg(color::Almost_black);
+    }
+};
+
+class Front_page
+    : public ox::VTuple<Generator_title, ox::HLine, Generator_menu> {
+   public:
+    Generator_menu& menu = this->get<2>();
+    ox::HLine& line      = this->get<1>();
+
+   public:
+    Front_page()
+    {
+        using namespace ox::pipe;
+        *this | direct_focus() | forward_focus(menu);
+        line | fg(color::Start) | bg(color::Almost_black);
+    }
+};
+
 class Full_UI
     : public ox::VTuple<Top_bar,
                         ox::STuple<Floating_maze_stack, About_page, End_screen>,
@@ -196,8 +238,8 @@ class Full_UI
 
         *this | direct_focus() | forward_focus(maze_stack);
 
-        // middle stack - set floating maze stack
-        this->get<1>().set_active_page(0);
+        // middle stack
+        this->get<1>().set_active_page(maze_stack_index_);
 
         maze_stack.maze_reset.connect([this] {
             bottom_bar.reset_notify.set_text(
@@ -211,20 +253,57 @@ class Full_UI
             [this](auto count) { bottom_bar.attempts.set(count); });
 
         maze_stack.game_over.connect([this](auto const& attempts) {
+            last_main_index_ = end_screen_index_;
             end_screen.initialize(attempts);
             top_bar.display_game_over_text();
-            this->get<1>().set_active_page(2);
+            this->get<1>().set_active_page(end_screen_index_);
         });
 
         bottom_bar.reset_btn |
             on_press([this] { maze_stack.reset_active_maze(); });
 
-        bottom_bar.about_btn.top |
-            on_press([this] { this->get<1>().set_active_page(1); });
+        bottom_bar.about_btn.top | on_press([this] {
+            this->get<1>().set_active_page(about_page_index_);
+        });
 
-        bottom_bar.about_btn.bottom |
-            on_press([this] { this->get<1>().set_active_page(0); });
+        bottom_bar.about_btn.bottom | on_press([this] {
+            this->get<1>().set_active_page(last_main_index_);
+        });
     }
+
+   public:
+    void flip_to_mazes() { this->get<1>().set_active_page(maze_stack_index_); }
+
+   private:
+    std::size_t last_main_index_ = maze_stack_index_;
+
+   private:
+    static constexpr auto maze_stack_index_ = 0;
+    static constexpr auto about_page_index_ = 1;
+    static constexpr auto end_screen_index_ = 2;
+};
+
+class Lantern_app : public ox::SPair<Front_page, Full_UI> {
+   public:
+    Front_page& front_page = this->first;
+    Full_UI& full_ui       = this->second;
+
+   public:
+    Lantern_app()
+    {
+        using namespace ox::pipe;
+        *this | direct_focus() | active_page(front_page_index_);
+
+        front_page.menu.chosen.connect([this](Generator g) {
+            this->set_active_page(full_ui_index_);
+            full_ui.maze_stack.initialize_mazes(g);
+            full_ui.flip_to_mazes();
+        });
+    }
+
+   private:
+    static constexpr auto front_page_index_ = 0;
+    static constexpr auto full_ui_index_    = 1;
 };
 
 }  // namespace lantern

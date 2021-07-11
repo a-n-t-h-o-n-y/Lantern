@@ -6,11 +6,13 @@
 #include <random>
 
 #include <maze/distance.hpp>
+#include <maze/generate_kruskal.hpp>
 #include <maze/generate_recursive_backtracking.hpp>
 #include <maze/longest_path.hpp>
 #include <maze/maze.hpp>
 #include <termox/termox.hpp>
 
+#include "generator.hpp"
 #include "palette.hpp"
 
 namespace lantern {
@@ -42,21 +44,35 @@ class Dimly_lit_maze : public ox::Widget {
     /// Move the wanderer back to the beginning of the maze and reset step count
     void reset()
     {
+        if (reveal_maze_)
+            return;
         step_count_     = 0;
-        wanderer_point_ = maze_.start();
+        wanderer_point_ = maze_start_;
+        time_warp.emit();
         this->update();
     }
 
-    void generate(maze::Point start)
+    void generate(Generator type)
     {
-        maze_ = maze::generate_recursive_backtracking<Width, Height>(start);
-        wanderer_point_ = maze_.start();
-        max_steps_      = maze::longest_path(maze_, maze_.start()).size() - 1;
+        switch (type) {
+            case Generator::Recursive_backtracking:
+                maze_ = maze::generate_recursive_backtracking<Width, Height>();
+                break;
+            case Generator::Kruskal:
+                maze_ = maze::generate_kruskal<Width, Height>();
+                break;
+        }
+        auto const solution = maze::longest_path(maze_);
+        assert(!solution.empty());
+        max_steps_      = solution.size() - 1;
+        maze_start_     = solution.front();
+        maze_end_       = solution.back();
+        wanderer_point_ = maze_start_;
         step_count_     = 0;
     }
 
     /// Return the end of the currently set maze.
-    [[nodiscard]] auto maze_end() const -> maze::Point { return maze_.end(); }
+    [[nodiscard]] auto maze_end() const -> maze::Point { return maze_end_; }
 
     /// Displays the entire maze when set true, otherwise only shows neighbors.
     void reveal_maze(bool reveal = true)
@@ -91,7 +107,12 @@ class Dimly_lit_maze : public ox::Widget {
 
         if (k == ox::Key::r) {
             this->reset();
-            time_warp.emit();
+            if (!reveal_maze_)
+                time_warp.emit();
+        }
+        if (k == ox::Key::N) {
+            maze_complete.emit();
+            return Widget::key_press_event(k);
         }
         auto const direction = to_direction(k);
         if (direction.has_value()) {
@@ -101,7 +122,7 @@ class Dimly_lit_maze : public ox::Widget {
                 wanderer_point_ = *next;
                 this->update();
                 ++step_count_;
-                if (wanderer_point_ == maze_.end())
+                if (wanderer_point_ == maze_end_)
                     maze_complete.emit();
                 else if (step_count_ == max_steps_) {
                     this->reset();
@@ -135,7 +156,8 @@ class Dimly_lit_maze : public ox::Widget {
         }
 
         if (reveal_maze_) {
-            paint_entire_maze(p, maze_, start_glyph, end_glyph);
+            paint_entire_maze(p, maze_, start_glyph, end_glyph, maze_start_,
+                              maze_end_);
             return Widget::paint_event(p);
         }
 
@@ -150,7 +172,7 @@ class Dimly_lit_maze : public ox::Widget {
                     maze::utility::next_point<Width, Height>(*next, direction);
                 if (next.has_value() &&
                     maze_.get(*next) == maze::Cell::Passage) {
-                    if (*next == maze_.end())
+                    if (*next == maze_end_)
                         p.put(end_glyph, {next->x, next->y});
                     else
                         p.put(block, {next->x, next->y});
@@ -161,8 +183,8 @@ class Dimly_lit_maze : public ox::Widget {
             }
         }
 
-        if (wanderer_point_ != maze_.start())
-            p.put(start_glyph, {maze_.start().x, maze_.start().y});
+        if (wanderer_point_ != maze_start_)
+            p.put(start_glyph, {maze_start_.x, maze_start_.y});
 
         return Widget::paint_event(p);
     }
@@ -170,6 +192,8 @@ class Dimly_lit_maze : public ox::Widget {
    private:
     maze::Maze<Width, Height> maze_{maze::Cell::Wall};
     maze::Point wanderer_point_ = {0, 0};
+    maze::Point maze_start_     = {0, 0};
+    maze::Point maze_end_       = {0, 0};
     int max_steps_              = 0;
     int step_count_             = 0;
     bool too_small_             = true;
@@ -242,8 +266,10 @@ class Dimly_lit_maze : public ox::Widget {
 
     static void paint_entire_maze(ox::Painter& p,
                                   maze::Maze<Width, Height> const& m,
-                                  ox::Glyph start,
-                                  ox::Glyph end)
+                                  ox::Glyph start_glyph,
+                                  ox::Glyph end_glyph,
+                                  maze::Point start,
+                                  maze::Point end)
     {
         for (auto x = 0; x < Width; ++x) {
             for (auto y = 0; y < Height; ++y) {
@@ -254,12 +280,12 @@ class Dimly_lit_maze : public ox::Widget {
             }
         }
 
-        auto const solution = maze::longest_path(m, m.start());
+        auto const solution = maze::longest_path_from(m, start);
         for (auto point : solution)
             p.put(U'•' | fg(color::Gray), {point.x, point.y});
 
-        p.put(start, {m.start().x, m.start().y});
-        p.put(end, {m.end().x, m.end().y});
+        p.put(start_glyph, {start.x, start.y});
+        p.put(end_glyph, {end.x, end.y});
     }
 
    private:

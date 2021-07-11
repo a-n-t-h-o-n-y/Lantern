@@ -27,3 +27,8 @@ git submodules are used to pull in dependencies, run `git submodule update
 
 CMake is the supported build generator, it generates the `lantern` executable
 target. Requires a C++20(concepts) capable compiler.
+
+## Cheats
+
+You didn't hear it from me, but if you press `Shift` + `N`, you will jump
+forward one level.

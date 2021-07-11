@@ -8,19 +8,20 @@
 #include <termox/termox.hpp>
 
 #include "dimly_lit_maze.hpp"
+#include "generator.hpp"
 #include "palette.hpp"
 
 namespace lantern {
 
-using Mazes_tuple = ox::STuple<Dimly_lit_maze<10, 5>,
-                               Dimly_lit_maze<14, 7>,
-                               Dimly_lit_maze<28, 9>,
-                               Dimly_lit_maze<34, 12>,
-                               Dimly_lit_maze<38, 14>,
-                               Dimly_lit_maze<45, 16>,
-                               Dimly_lit_maze<52, 18>,
-                               Dimly_lit_maze<60, 20>,
-                               Dimly_lit_maze<80, 20>>;
+using Mazes_tuple = ox::STuple<Dimly_lit_maze<11, 7>,
+                               Dimly_lit_maze<15, 9>,
+                               Dimly_lit_maze<29, 11>,
+                               Dimly_lit_maze<35, 13>,
+                               Dimly_lit_maze<39, 15>,
+                               Dimly_lit_maze<47, 17>,
+                               Dimly_lit_maze<53, 19>,
+                               Dimly_lit_maze<61, 21>,
+                               Dimly_lit_maze<81, 21>>;
 
 /// Holds all levels of generated mazes.
 class Maze_stack : public Mazes_tuple {
@@ -41,8 +42,6 @@ class Maze_stack : public Mazes_tuple {
         using namespace ox::pipe;
         *this | direct_focus();
 
-        this->initialize_mazes(std::make_index_sequence<9>());
-
         this->set_maze(0);
 
         maze_reset.connect(
@@ -53,7 +52,6 @@ class Maze_stack : public Mazes_tuple {
     void reset_active_maze()
     {
         auto const index = this->active_page_index();
-        this->increment_attempts(index);
         switch (index) {
             case 0: this->get<0>().reset(); break;
             case 1: this->get<1>().reset(); break;
@@ -66,6 +64,11 @@ class Maze_stack : public Mazes_tuple {
             case 8: this->get<8>().reset(); break;
             default: throw std::logic_error{"reset_active_maze bad index."};
         }
+    }
+
+    void initialize_mazes(Generator g)
+    {
+        this->do_initialize_mazes(std::make_index_sequence<9>(), g);
     }
 
    protected:
@@ -115,7 +118,7 @@ class Maze_stack : public Mazes_tuple {
     }
 
     template <std::size_t... Is>
-    void initialize_mazes(std::index_sequence<Is...>)
+    void do_initialize_mazes(std::index_sequence<Is...>, Generator g)
     {
         auto const emit_reset = [this] { this->maze_reset.emit(); };
         (this->get<Is>().time_warp.connect(emit_reset), ...);
@@ -124,9 +127,7 @@ class Maze_stack : public Mazes_tuple {
         };
         (this->get<Is>().maze_complete.connect([=] { goto_next_maze(Is); }),
          ...);
-        auto start = maze::utility::random_point<10, 5>();
-        ((this->get<Is>().generate(start), start = this->get<Is>().maze_end()),
-         ...);
+        ((this->get<Is>().generate(g)), ...);
     }
 
     void reveal_maze_and_set_timer(std::size_t index)
