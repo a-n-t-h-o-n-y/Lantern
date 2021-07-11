@@ -207,11 +207,9 @@ class Dimly_lit_maze : public ox::Widget {
                fg(color::Wall_1) | bg(color::Wall_2);
     }
 
-    [[nodiscard]] static auto get_shuffled_walls() -> std::array<char32_t, 60>
+    [[nodiscard]] static auto get_shuffled_walls() -> std::array<char32_t, 46>
     {
         auto walls = std::array{
-            U'🬀', U'🬁', U'🬂', U'🬃', U'🬄', U'🬅', U'🬆',
-            U'🬇', U'🬈', U'🬉', U'🬊', U'🬋', U'🬌', U'🬍',
             U'🬎', U'🬏', U'🬐', U'🬑', U'🬒', U'🬓', U'🬔',
             U'🬕', U'🬖', U'🬗', U'🬘', U'🬙', U'🬚', U'🬛',
             U'🬜', U'🬝', U'🬞', U'🬟', U'🬠', U'🬡', U'🬢',
@@ -289,7 +287,7 @@ class Dimly_lit_maze : public ox::Widget {
     }
 
    private:
-    inline static std::array<char32_t, 60> wall_glyphs_ = get_shuffled_walls();
+    inline static std::array<char32_t, 46> wall_glyphs_ = get_shuffled_walls();
 };
 
 }  // namespace lantern
