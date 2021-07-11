@@ -6,6 +6,7 @@ namespace lantern {
 enum class Generator {
     Recursive_backtracking,
     Kruskal,
+    Prims,
 };
 
 }  // namespace lantern

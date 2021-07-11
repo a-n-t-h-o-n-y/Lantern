@@ -7,6 +7,7 @@
 
 #include <maze/distance.hpp>
 #include <maze/generate_kruskal.hpp>
+#include <maze/generate_prims.hpp>
 #include <maze/generate_recursive_backtracking.hpp>
 #include <maze/longest_path.hpp>
 #include <maze/maze.hpp>
@@ -60,6 +61,9 @@ class Dimly_lit_maze : public ox::Widget {
                 break;
             case Generator::Kruskal:
                 maze_ = maze::generate_kruskal<Width, Height>();
+                break;
+            case Generator::Prims:
+                maze_ = maze::generate_prims<Width, Height>();
                 break;
         }
         auto const solution = maze::longest_path(maze_);

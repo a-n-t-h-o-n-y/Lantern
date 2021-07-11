@@ -196,8 +196,11 @@ class Generator_menu : public ox::Menu {
         this->append_item(U"Recursive Backtracking").connect([this] {
             chosen.emit(Generator::Recursive_backtracking);
         });
-        this->append_item(U"Randomized Kruskal").connect([this] {
+        this->append_item(U"Randomized Kruskal's").connect([this] {
             chosen.emit(Generator::Kruskal);
+        });
+        this->append_item(U"Randomized Prim's").connect([this] {
+            chosen.emit(Generator::Prims);
         });
 
         *this | descendants() | fg(color::Almost_white) |
