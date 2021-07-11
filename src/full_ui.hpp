@@ -202,6 +202,9 @@ class Generator_menu : public ox::Menu {
         this->append_item(U"Randomized Prim's").connect([this] {
             chosen.emit(Generator::Prims);
         });
+        this->append_item(U"Aldous Broder").connect([this] {
+            chosen.emit(Generator::Aldous_broder);
+        });
 
         *this | descendants() | fg(color::Almost_white) |
             bg(color::Almost_black);

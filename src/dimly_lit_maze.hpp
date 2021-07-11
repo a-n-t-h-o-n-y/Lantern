@@ -6,6 +6,7 @@
 #include <random>
 
 #include <maze/distance.hpp>
+#include <maze/generate_aldous_broder.hpp>
 #include <maze/generate_kruskal.hpp>
 #include <maze/generate_prims.hpp>
 #include <maze/generate_recursive_backtracking.hpp>
@@ -64,6 +65,9 @@ class Dimly_lit_maze : public ox::Widget {
                 break;
             case Generator::Prims:
                 maze_ = maze::generate_prims<Width, Height>();
+                break;
+            case Generator::Aldous_broder:
+                maze_ = maze::generate_aldous_broder<Width, Height>();
                 break;
         }
         auto const solution = maze::longest_path(maze_);
