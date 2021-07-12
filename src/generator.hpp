@@ -8,6 +8,7 @@ enum class Generator {
     Kruskal,
     Prims,
     Aldous_broder,
+    Recursive_division,
 };
 
 }  // namespace lantern

@@ -205,6 +205,9 @@ class Generator_menu : public ox::Menu {
         this->append_item(U"Aldous Broder").connect([this] {
             chosen.emit(Generator::Aldous_broder);
         });
+        this->append_item(U"Recursive Division").connect([this] {
+            chosen.emit(Generator::Recursive_division);
+        });
 
         *this | descendants() | fg(color::Almost_white) |
             bg(color::Almost_black);

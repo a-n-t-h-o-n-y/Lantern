@@ -10,6 +10,7 @@
 #include <maze/generate_kruskal.hpp>
 #include <maze/generate_prims.hpp>
 #include <maze/generate_recursive_backtracking.hpp>
+#include <maze/generate_recursive_division.hpp>
 #include <maze/longest_path.hpp>
 #include <maze/maze.hpp>
 #include <termox/termox.hpp>
@@ -68,6 +69,9 @@ class Dimly_lit_maze : public ox::Widget {
                 break;
             case Generator::Aldous_broder:
                 maze_ = maze::generate_aldous_broder<Width, Height>();
+                break;
+            case Generator::Recursive_division:
+                maze_ = maze::generate_recursive_division<Width, Height>();
                 break;
         }
         auto const solution = maze::longest_path(maze_);
