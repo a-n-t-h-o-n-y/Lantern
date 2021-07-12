@@ -1,10 +1,11 @@
 # Lantern 🕯️
 
-Complete each maze in the least number of steps possible.
+Complete each maze with minimal visiblity, making no wrong turns.
 
-The wanderer is reset if this step count is reached without completing the maze.
+The Wanderer is sent back to the beginning whenever the minimum number of steps
+to complete the maze has been reached(without making it to the end).
 
-Complete each level in the least number of attempts.
+Each attempt is tallied.
 
 <p align="center">
   <img src="docs/lantern-1.png">

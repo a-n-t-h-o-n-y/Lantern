@@ -123,11 +123,14 @@ class About_page : public ox::HTuple<ox::Widget, ox::Text_view, ox::Widget> {
         auto result = ox::Glyph_string{U'\n'};
         result.append(U"                     About" | ox::Trait::Bold);
         result.append(U"\n\n");
+
         result.append(
-            U"Complete each maze in the least number of steps possible.\n\nThe "
-            U"wanderer is reset if this step count is reached without "
-            U"completing the maze.\n\nComplete each level in the least number "
-            U"of attempts.\n\n");
+            U"Complete each maze with minimal visiblity, making no wrong "
+            U"turns.\n\n"
+            U"The Wanderer is sent back to the beginning whenever the minimum "
+            U"number of steps to complete the maze has been reached(without "
+            U"making it to the end).\n\n"
+            U"Each attempt it tallied\n\n");
 
         result.append(U"Controls" | ox::Trait::Bold);
         result.append(U"\n• Movement             Arrow Keys / wasd / hjkl");
